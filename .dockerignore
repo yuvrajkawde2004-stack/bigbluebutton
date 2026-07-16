@@ -32,3 +32,4 @@ test/
 app/assets/builds/*
 dockerfiles/
 !**/.keep
+data/

@@ -8,7 +8,7 @@ services:
       - ./data/postgres/14/database_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=
+      - POSTGRES_PASSWORD=YuvRaj
 
   redis:
     image: redis:6.2-alpine3.20
@@ -19,12 +19,12 @@ services:
 
   greenlight-v3:
     entrypoint: [bin/start]
-    image: bigbluebutton/greenlight:v3
+    image: custom-greenlight:v3
     container_name: greenlight-v3
     restart: unless-stopped
     env_file: .env
     ports:
-      - 127.0.0.1:5050:3000
+      - 5050:3000
     logging:
       driver: ${LOGGING_DRIVER:-journald}
     volumes:

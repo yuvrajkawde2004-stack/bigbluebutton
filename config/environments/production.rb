@@ -164,7 +164,7 @@ Rails.application.configure do
 
   # Enable HSTS in production mode
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  config.force_ssl = false
   config.ssl_options = {
     redirect: { exclude: ->(request) { request.path.include?('health_check') } },
     hsts: { expires: 1.year, subdomains: true }
