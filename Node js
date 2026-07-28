@@ -1,0 +1,322 @@
+Yes. I reviewed both questions, and there are a few logical ambiguities and potential grading issues that are worth reporting. None of them are fatal, but they could confuse candidates or lead to inconsistent grading.
+
+## Question 1 – Docker Environment Variables
+
+### Task Summary
+
+* Create container `app-server`
+* Use image `public.ecr.aws/docker/library/busybox:latest`
+* Run in interactive background mode (no TTY)
+* Set `APP_ENV=production`
+* Create container `worker`
+* Same image
+* Interactive background mode (no TTY)
+* Set `WORKER_THREADS=4`
+
+### Possible Issues
+
+### 1. "Configure the environment variable inside the container"
+
+This wording is ambiguous.
+
+There are multiple valid ways:
+
+* `docker run -e APP_ENV=production ...`
+* `docker exec app-server sh -c 'export APP_ENV=production'`
+* editing `/etc/profile`
+* writing to `/etc/environment`
+
+Only the first method survives for the lifetime of the container and is normally checked using:
+
+```bash
+docker exec app-server env
+```
+
+**Recommendation**
+
+Instead of
+
+> Configure the environment variable inside the container.
+
+use
+
+> Start the container with the environment variable APP_ENV=production using Docker's environment variable mechanism.
+
+or
+
+> Ensure `docker exec app-server env` shows `APP_ENV=production`.
+
+---
+
+### 2. "Interactive background mode without pseudo-TTY"
+
+This wording is unusual.
+
+Docker terminology is:
+
+* `-i` = interactive
+* `-t` = pseudo tty
+* `-d` = detached
+
+Candidates may wonder:
+
+Should I use
+
+```bash
+-itd
+```
+
+or
+
+```bash
+-id
+```
+
+The requirement says
+
+> without pseudo-TTY
+
+meaning
+
+```bash
+docker run -id
+```
+
+But many people automatically use `-itd`.
+
+**Recommendation**
+
+Explicitly state
+
+> Run with `-i -d` only (do not use `-t`).
+
+---
+
+### 3. BusyBox exits immediately
+
+BusyBox containers stop unless a long-running command is supplied.
+
+The question never says to keep the container alive.
+
+Many candidates may write
+
+```bash
+docker run -id --name app-server ...
+```
+
+which immediately exits.
+
+Others will use
+
+```bash
+sleep infinity
+```
+
+or
+
+```bash
+sh
+```
+
+or
+
+```bash
+tail -f /dev/null
+```
+
+depending on BusyBox support.
+
+The grader probably expects a running container.
+
+**Recommendation**
+
+Mention
+
+> Keep the container running.
+
+---
+
+### 4. Grading doesn't specify running vs existing
+
+Grading says
+
+> Container app-server exists.
+
+It doesn't specify whether
+
+```bash
+Exited
+```
+
+or
+
+```bash
+Running
+```
+
+is acceptable.
+
+---
+
+## Question 2 – Docker Persistent Storage
+
+### Task Summary
+
+Create
+
+* volume `app-data`
+* container `storage-writer`
+* mount `/shared`
+* container `storage-reader`
+* mount same volume
+* create
+
+```
+/shared/message.txt
+```
+
+containing exactly
+
+```
+Docker Persistent Storage
+```
+
+---
+
+### 1. Doesn't specify where the file must be created
+
+It only says
+
+> Creates a file named message.txt inside the shared volume.
+
+It never says whether:
+
+* writer creates it
+* reader creates it
+* host creates it
+
+All satisfy the requirement.
+
+Since grading only checks reader can see it, multiple solutions exist.
+
+This is not wrong—but ambiguous.
+
+Recommendation:
+
+> Create the file from inside the storage-writer container.
+
+---
+
+### 2. Exact content ambiguity
+
+It says
+
+contains exactly
+
+```
+Docker Persistent Storage
+```
+
+Does that include
+
+newline?
+
+Example:
+
+```
+echo "Docker Persistent Storage"
+```
+
+produces
+
+```
+Docker Persistent Storage\n
+```
+
+while
+
+```
+printf "Docker Persistent Storage"
+```
+
+produces no newline.
+
+The grader must clarify whether newline is allowed.
+
+---
+
+### 3. Doesn't specify container must remain running
+
+Like Question 1,
+
+BusyBox exits immediately.
+
+Should candidates use
+
+```
+sleep infinity
+```
+
+or not?
+
+Not stated.
+
+---
+
+### 4. Mount verification
+
+Grading says
+
+Both containers use the app-data volume mounted at /shared.
+
+Good.
+
+No issue.
+
+---
+
+### 5. "Interactive background mode"
+
+Again, same wording ambiguity.
+
+Should use
+
+```
+-id
+```
+
+rather than
+
+```
+-itd
+```
+
+---
+
+# Overall Report
+
+| Issue                                                            | Severity | Question |
+| ---------------------------------------------------------------- | -------- | -------- |
+| "Configure environment variable inside container" is ambiguous   | Medium   | Q1       |
+| Interactive background mode wording is unclear                   | Medium   | Q1 & Q2  |
+| Doesn't specify container should remain running                  | Medium   | Q1 & Q2  |
+| BusyBox exits immediately unless a long-running command is used  | High     | Q1 & Q2  |
+| Doesn't specify writer must create the file                      | Low      | Q2       |
+| "Exactly" doesn't clarify whether trailing newline is allowed    | Medium   | Q2       |
+| Grading says container exists but not whether it must be running | Medium   | Q1 & Q2  |
+
+## Suggested Report to Send
+
+> I found several ambiguities in these Docker assessment questions:
+>
+> 1. The instruction "configure the environment variable inside the container" is ambiguous because environment variables can be set in multiple ways. The expected method (e.g., using `docker run -e`) should be stated explicitly.
+>
+> 2. The phrase "interactive background mode without pseudo-TTY allocation" may confuse candidates. It would be clearer to explicitly require `-i -d` and specify that `-t` must not be used.
+>
+> 3. Both questions use the BusyBox image, which exits immediately unless a long-running command is provided. The tasks should specify whether containers are expected to remain running or whether an exited container is acceptable.
+>
+> 4. In Question 2, the task does not specify which container should create `message.txt`; the file could be created from the host or either container while still satisfying the grading criteria.
+>
+> 5. The phrase "contains exactly Docker Persistent Storage" does not clarify whether a trailing newline is acceptable, which may lead to inconsistent grading depending on how the validator checks the file contents.
+
+These changes would make the requirements more precise and reduce the chance of valid solutions being marked incorrectly.
